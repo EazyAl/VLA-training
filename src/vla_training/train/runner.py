@@ -139,25 +139,29 @@ def _build_model(
                         self._paligemma = paligemma_instance
                     
                     def get_image_features(self, image):
-                        # In newer transformers, use the vision model directly
-                        # PaliGemma has a vision_model attribute
+                        """Extract image features using PaliGemma vision model."""
+                        # In newer transformers, PaliGemma uses vision_model
+                        # image should be a tensor with shape (B, C, H, W) or (C, H, W)
                         if hasattr(self._paligemma, 'vision_model'):
-                            return self._paligemma.vision_model(image).last_hidden_state
-                        # Fallback: try to get image features from the model
+                            # Ensure image is a tensor
+                            if not isinstance(image, torch.Tensor):
+                                image = torch.tensor(image)
+                            
+                            # Handle different input shapes
+                            if image.dim() == 3:  # (C, H, W) - add batch dim
+                                image = image.unsqueeze(0)
+                            
+                            # vision_model expects pixel_values keyword argument
+                            vision_outputs = self._paligemma.vision_model(pixel_values=image)
+                            return vision_outputs.last_hidden_state
+                        # Fallback: try direct method if it exists
                         elif hasattr(self._paligemma, 'get_image_features'):
                             return self._paligemma.get_image_features(image)
                         else:
-                            # Last resort: use the processor and model
-                            from transformers import PaliGemmaProcessor
-                            processor = PaliGemmaProcessor.from_pretrained(
-                                self._paligemma.config.name_or_path if hasattr(self._paligemma.config, 'name_or_path') 
-                                else 'google/paligemma-3b-mix-224'
+                            raise AttributeError(
+                                "PaliGemma model has no vision_model or get_image_features method. "
+                                "This may be a transformers version compatibility issue."
                             )
-                            inputs = processor(images=image, return_tensors="pt")
-                            # Extract image features from vision model
-                            if hasattr(self._paligemma, 'vision_model'):
-                                return self._paligemma.vision_model(**inputs).last_hidden_state
-                            raise AttributeError("Cannot find image feature extraction method")
                 
                 return ModelWrapper(self)
             
