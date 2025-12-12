@@ -145,8 +145,8 @@ def _build_model(
                     if hasattr(self._paligemma, 'get_image_features'):
                         return self._paligemma.get_image_features(image)
                     
-                    # Approach 2: vision_model attribute (newer transformers)
-                    if hasattr(self._paligemma, 'vision_model'):
+                    # Approach 2: vision_tower attribute (newer transformers - this is what we have!)
+                    if hasattr(self._paligemma, 'vision_tower'):
                         # Ensure image is a tensor and on the right device
                         if not isinstance(image, torch.Tensor):
                             image = torch.tensor(image, device=self._paligemma.device)
@@ -157,29 +157,40 @@ def _build_model(
                         if image.dim() == 3:  # (C, H, W) - add batch dim
                             image = image.unsqueeze(0)
                         
-                        # vision_model expects pixel_values keyword argument
+                        # vision_tower expects pixel_values keyword argument
+                        vision_outputs = self._paligemma.vision_tower(pixel_values=image)
+                        return vision_outputs.last_hidden_state
+                    
+                    # Approach 3: vision_model attribute (older transformers)
+                    if hasattr(self._paligemma, 'vision_model'):
+                        if not isinstance(image, torch.Tensor):
+                            image = torch.tensor(image, device=self._paligemma.device)
+                        else:
+                            image = image.to(self._paligemma.device)
+                        
+                        if image.dim() == 3:
+                            image = image.unsqueeze(0)
+                        
                         vision_outputs = self._paligemma.vision_model(pixel_values=image)
                         return vision_outputs.last_hidden_state
                     
-                    # Approach 3: Check for nested model structure (avoid recursion!)
+                    # Approach 4: Check for nested model structure (avoid recursion!)
                     # Use __dict__ to check without triggering property
                     if 'model' in self._paligemma.__dict__:
                         inner_model = self._paligemma.__dict__['model']
                         if hasattr(inner_model, 'get_image_features'):
                             return inner_model.get_image_features(image)
                     
-                    # Approach 4: Log available attributes for debugging
+                    # If we get here, log and raise error
                     attrs = [attr for attr in dir(self._paligemma) if not attr.startswith('_') and 'vision' in attr.lower()]
                     LOG.error(
-                        "PaliGemma model structure - vision-related attrs: %s, all attrs: %s",
-                        attrs,
-                        [a for a in dir(self._paligemma) if not a.startswith('_')][:20]
+                        "PaliGemma model structure - vision-related attrs: %s",
+                        attrs
                     )
                     raise AttributeError(
-                        f"PaliGemma model (type: {type(self._paligemma)}) has no vision_model, "
-                        "get_image_features, or nested model.get_image_features method. "
-                        "This is a transformers version compatibility issue. "
-                        "Try: pip install transformers==4.45.2"
+                        f"PaliGemma model (type: {type(self._paligemma)}) has no vision_tower, "
+                        "vision_model, get_image_features, or nested model.get_image_features method. "
+                        "Available vision-related attributes: %s" % attrs
                     )
             
             def _model_property(self):
