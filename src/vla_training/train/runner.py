@@ -122,6 +122,19 @@ def _build_model(
             siglip.check = _Check()  # type: ignore[attr-defined]
     except Exception:
         pass
+    
+    # Work around LeRobot Pi05 PaliGemma model access issue
+    # In newer transformers versions, PaliGemmaForConditionalGeneration doesn't have .model attribute
+    try:
+        from transformers import PaliGemmaForConditionalGeneration
+        
+        # Monkey patch to add .model attribute if missing (for compatibility with LeRobot 0.4.2)
+        if not hasattr(PaliGemmaForConditionalGeneration, 'model'):
+            def _get_model(self):
+                return self
+            PaliGemmaForConditionalGeneration.model = property(_get_model)
+    except Exception:
+        pass
     action_dim = spec.action_dim
 
     # Infer state dim from proprio keys if present; fallback to action_dim
