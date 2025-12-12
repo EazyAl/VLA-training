@@ -55,6 +55,7 @@ python scripts/prepare_data_and_cache.py --skip-models
 
 ```bash
 # Validate the dataset to ensure it's correct
+# The artifacts directory will be created automatically if it doesn't exist
 python -m vla_training.cli.validate \
     --data-root data/lekiwi_pickplace \
     --spec configs/specs/mechalabs.yaml \
