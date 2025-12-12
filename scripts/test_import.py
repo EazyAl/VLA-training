@@ -35,7 +35,22 @@ except Exception as e:
             print(f"  ✓ {dep} available")
         except ImportError:
             print(f"  ✗ {dep} MISSING")
-    sys.exit(1)
+    
+    # Try importing with explicit path
+    print("\nTrying with explicit src path...")
+    import os
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    src_path = os.path.join(repo_root, 'src')
+    if src_path not in sys.path:
+        sys.path.insert(0, src_path)
+    try:
+        import vla_training.data
+        print("✓ vla_training.data imported with explicit src path")
+        print("  Location:", vla_training.data.__file__)
+    except Exception as e2:
+        print("✗ Still failed with explicit path:")
+        traceback.print_exc()
+        sys.exit(1)
 
 # Test specific imports
 try:
