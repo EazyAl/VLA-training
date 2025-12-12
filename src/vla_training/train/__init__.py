@@ -6,6 +6,7 @@ from .config import (
     OptimizerConfig,
     SchedulerConfig,
     TrainingConfig,
+    WandbConfig,
     Precision,
 )
 from .runner import TrainingRunner
@@ -17,6 +18,7 @@ __all__ = [
     "OptimizerConfig",
     "SchedulerConfig",
     "CheckpointConfig",
+    "WandbConfig",
     "Precision",
 ]
 
