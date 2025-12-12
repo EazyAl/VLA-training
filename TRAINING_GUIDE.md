@@ -16,8 +16,12 @@ This guide walks you through training the Pi05 policy on your dataset on a remot
 git clone https://github.com/EazyAl/VLA-training.git
 cd VLA-training
 
-# Install the package (if not already installed)
+# IMPORTANT: Install the package in editable mode
+# This is REQUIRED for the CLI commands to work
 pip install -e .
+
+# Verify installation
+python -c "import vla_training; print('Package installed successfully')"
 ```
 
 ### Step 2: Download Dataset and Cache Models
@@ -46,6 +50,8 @@ python scripts/prepare_data_and_cache.py --skip-models
 ```
 
 ### Step 3: Validate Dataset (Optional but Recommended)
+
+**Note**: Make sure you've run `pip install -e .` in Step 1, otherwise you'll get a `ModuleNotFoundError`.
 
 ```bash
 # Validate the dataset to ensure it's correct
@@ -197,6 +203,27 @@ python -m vla_training.cli.train --config configs/phase_b.json \
 - Increase `num_workers` (if data loading is bottleneck)
 - Check GPU utilization: `rocm-smi` or `nvidia-smi`
 
+### ModuleNotFoundError: No module named 'vla_training'
+
+**This means the package isn't installed.** Fix it with:
+
+```bash
+# Make sure you're in the repository root
+cd /path/to/VLA-training
+
+# Install the package in editable mode
+pip install -e .
+
+# Verify it works
+python -c "import vla_training; print('OK')"
+```
+
+**Alternative**: If you can't install, you can run modules directly:
+```bash
+# Instead of: python -m vla_training.cli.validate
+python src/vla_training/cli/validate.py --data-root ...
+```
+
 ### Checkpoint Not Found
 - Ensure normalization stats are computed first
 - Check that dataset path is correct
@@ -213,8 +240,14 @@ python -m vla_training.cli.train --config configs/phase_b.json \
 # Complete setup (one-time)
 git clone https://github.com/EazyAl/VLA-training.git
 cd VLA-training
+
+# CRITICAL: Install package first (required for all CLI commands)
 pip install -e .
+
+# Download dataset and cache models
 python scripts/prepare_data_and_cache.py
+
+# Compute normalization stats
 python -m vla_training.cli.compute_norms \
     --data-root data/lekiwi_pickplace \
     --spec configs/specs/mechalabs.yaml \
