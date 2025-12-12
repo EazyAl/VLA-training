@@ -77,3 +77,6 @@ testpaths = ["tests"]
 [tool.coverage.run]
 omit = ["tests/*", "data/*", "artifacts/*"]
 
+[tool.hatchling.build]
+packages = ["src/vla_training"]
+
