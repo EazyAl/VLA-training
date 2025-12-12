@@ -125,15 +125,18 @@ def _build_model(
     
     # Work around LeRobot Pi05 PaliGemma model access issue
     # In newer transformers versions, PaliGemmaForConditionalGeneration doesn't have .model attribute
+    # LeRobot 0.4.2 expects self.paligemma.model.get_image_features(), but the model IS the object
     try:
         from transformers import PaliGemmaForConditionalGeneration
         
-        # Monkey patch to add .model attribute if missing (for compatibility with LeRobot 0.4.2)
+        # Add .model property that returns self (for compatibility with LeRobot 0.4.2)
         if not hasattr(PaliGemmaForConditionalGeneration, 'model'):
-            def _get_model(self):
+            # Create a property that returns the instance itself
+            def _model_property(self):
                 return self
-            PaliGemmaForConditionalGeneration.model = property(_get_model)
-    except Exception:
+            PaliGemmaForConditionalGeneration.model = property(_model_property)
+    except (ImportError, AttributeError):
+        # If PaliGemma isn't available or already has the attribute, skip
         pass
     action_dim = spec.action_dim
 
