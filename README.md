@@ -16,14 +16,33 @@ This repository fine-tunes Pi05 with LeRobot v0.4.2 on AMD/ROCm for arm-only con
 - `ci/` — CI-related scripts/configs
 
 ## Getting started
-1. Create a Python 3.10/3.11 environment (ROCm-capable).
-2. Install tooling via uv (recommended):
-   - Install dev deps: `uv pip install -e .[dev]`
-   - Lock (current platform): `uv lock --extra-index-url https://download.pytorch.org/whl/rocm6.2`
-   - Install ROCm wheels (adjust rocm version if needed):
-     `export TORCH_ROCM_VERSION=rocm6.2`
-     `uv pip install --extra-index-url https://download.pytorch.org/whl/$TORCH_ROCM_VERSION torch==2.7.0+$TORCH_ROCM_VERSION torchvision==0.22.0+$TORCH_ROCM_VERSION torchaudio==2.7.0+$TORCH_ROCM_VERSION`
+1. Create a Python 3.10/3.11 environment (ROCm-capable):
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+2. Install dependencies:
+   - Install ROCm PyTorch wheels first (adjust rocm version if needed):
+     ```bash
+     export TORCH_ROCM_VERSION=rocm6.2
+     pip install --extra-index-url https://download.pytorch.org/whl/$TORCH_ROCM_VERSION \
+       torch==2.7.0+$TORCH_ROCM_VERSION \
+       torchvision==0.22.0+$TORCH_ROCM_VERSION \
+       torchaudio==2.7.0+$TORCH_ROCM_VERSION
+     ```
+   - Install project dependencies:
+     ```bash
+     pip install -r requirements.txt
+     ```
+   - Install development dependencies (optional):
+     ```bash
+     pip install -r requirements-dev.txt
+     pip install -e .
+     ```
+
 3. (Optional) Install pre-commit hooks: `pre-commit install`.
+
 4. Verify environment: `python scripts/check_env.py`.
 
 Subsequent steps will add dataset validation, normalization, training, and evaluation pipelines.

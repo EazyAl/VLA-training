@@ -1,13 +1,13 @@
 0) Repo scaffold (before coding features)
 Decide stack: Python 3.10/3.11, PyTorch (ROCm), LeRobot 0.4.2 pinned.
 Create structure: configs/, data/ (ignored), scripts/, src/ (pkg), tests/, artifacts/ (ignored), ci/.
-Tooling: poetry/pip-tools or uv for lock; ruff + black + mypy (strict where feasible); pre-commit; pytest.
+Tooling: pip with requirements.txt; ruff + black + mypy (strict where feasible); pre-commit; pytest.
 Config system: OmegaConf/Hydra or pydantic config files in configs/. Favor declarative YAML + schema validation.
 Logging: loguru/structlog + W&B; env-based log level.
 
 1) Pin and verify environment (ROCm-friendly)
-Lock dependencies: torch/rocm wheels, LeRobot 0.4.2, torchvision, wandb, numpy, scipy, opencv, albumentations/kornia, rich, hydra/omegaconf, einops, tqdm.
-Add requirements.lock and a scripts/bootstrap_rocm.sh with ROCm checks (GPU visibility, drivers).
+Pin dependencies: torch/rocm wheels, LeRobot 0.4.2, torchvision, wandb, numpy, scipy, opencv, albumentations/kornia, rich, hydra/omegaconf, einops, tqdm.
+Add requirements.txt and a scripts/bootstrap_rocm.sh with ROCm checks (GPU visibility, drivers).
 Add a scripts/check_env.py to print torch, ROCm, GPUs, LeRobot version.
 
 2) Dataset contract + validation (fail fast)
