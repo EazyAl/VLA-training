@@ -143,18 +143,21 @@ def _build_model(
                         # In newer transformers, PaliGemma uses vision_model
                         # image should be a tensor with shape (B, C, H, W) or (C, H, W)
                         if hasattr(self._paligemma, 'vision_model'):
-                            # Ensure image is a tensor
+                            # Ensure image is a tensor and on the right device
                             if not isinstance(image, torch.Tensor):
-                                image = torch.tensor(image)
+                                image = torch.tensor(image, device=self._paligemma.device)
+                            else:
+                                image = image.to(self._paligemma.device)
                             
                             # Handle different input shapes
                             if image.dim() == 3:  # (C, H, W) - add batch dim
                                 image = image.unsqueeze(0)
                             
                             # vision_model expects pixel_values keyword argument
+                            # The image should already be preprocessed (normalized, etc.)
                             vision_outputs = self._paligemma.vision_model(pixel_values=image)
                             return vision_outputs.last_hidden_state
-                        # Fallback: try direct method if it exists
+                        # Fallback: try direct method if it exists (older transformers)
                         elif hasattr(self._paligemma, 'get_image_features'):
                             return self._paligemma.get_image_features(image)
                         else:
