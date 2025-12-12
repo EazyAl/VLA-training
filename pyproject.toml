@@ -79,6 +79,8 @@ omit = ["tests/*", "data/*", "artifacts/*"]
 
 [tool.hatchling.build.targets.wheel]
 packages = ["src/vla_training"]
+
 [tool.hatchling.build.targets.editable]
 dev-mode-dirs = ["src"]
+dev-mode-exact = true
 
