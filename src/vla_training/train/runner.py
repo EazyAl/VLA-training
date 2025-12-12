@@ -140,8 +140,12 @@ def _build_model(
                     
                     def get_image_features(self, image):
                         """Extract image features using PaliGemma vision model."""
-                        # In newer transformers, PaliGemma uses vision_model
-                        # image should be a tensor with shape (B, C, H, W) or (C, H, W)
+                        # Try multiple approaches based on transformers version
+                        # Approach 1: Direct method (transformers >= 4.52.3)
+                        if hasattr(self._paligemma, 'get_image_features'):
+                            return self._paligemma.get_image_features(image)
+                        
+                        # Approach 2: vision_model attribute (newer transformers)
                         if hasattr(self._paligemma, 'vision_model'):
                             # Ensure image is a tensor and on the right device
                             if not isinstance(image, torch.Tensor):
@@ -154,17 +158,24 @@ def _build_model(
                                 image = image.unsqueeze(0)
                             
                             # vision_model expects pixel_values keyword argument
-                            # The image should already be preprocessed (normalized, etc.)
                             vision_outputs = self._paligemma.vision_model(pixel_values=image)
                             return vision_outputs.last_hidden_state
-                        # Fallback: try direct method if it exists (older transformers)
-                        elif hasattr(self._paligemma, 'get_image_features'):
-                            return self._paligemma.get_image_features(image)
-                        else:
-                            raise AttributeError(
-                                "PaliGemma model has no vision_model or get_image_features method. "
-                                "This may be a transformers version compatibility issue."
-                            )
+                        
+                        # Approach 3: Check for nested model structure
+                        if hasattr(self._paligemma, 'model') and hasattr(self._paligemma.model, 'get_image_features'):
+                            return self._paligemma.model.get_image_features(image)
+                        
+                        # Approach 4: Try to access via config to understand structure
+                        LOG.error(
+                            "PaliGemma model structure: %s",
+                            [attr for attr in dir(self._paligemma) if not attr.startswith('_')]
+                        )
+                        raise AttributeError(
+                            f"PaliGemma model (type: {type(self._paligemma)}) has no vision_model, "
+                            "get_image_features, or model.get_image_features method. "
+                            "This is a transformers version compatibility issue. "
+                            "Try: pip install transformers==4.45.2"
+                        )
                 
                 return ModelWrapper(self)
             
