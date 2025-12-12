@@ -130,56 +130,63 @@ def _build_model(
     try:
         from transformers import PaliGemmaForConditionalGeneration
         
-        # Add .model property that returns self (for compatibility with LeRobot 0.4.2)
-        if not hasattr(PaliGemmaForConditionalGeneration, 'model'):
-            def _model_property(self):
-                # Return a wrapper that has get_image_features method
-                class ModelWrapper:
-                    def __init__(self, paligemma_instance):
-                        self._paligemma = paligemma_instance
-                    
-                    def get_image_features(self, image):
-                        """Extract image features using PaliGemma vision model."""
-                        # Try multiple approaches based on transformers version
-                        # Approach 1: Direct method (transformers >= 4.52.3)
-                        if hasattr(self._paligemma, 'get_image_features'):
-                            return self._paligemma.get_image_features(image)
-                        
-                        # Approach 2: vision_model attribute (newer transformers)
-                        if hasattr(self._paligemma, 'vision_model'):
-                            # Ensure image is a tensor and on the right device
-                            if not isinstance(image, torch.Tensor):
-                                image = torch.tensor(image, device=self._paligemma.device)
-                            else:
-                                image = image.to(self._paligemma.device)
-                            
-                            # Handle different input shapes
-                            if image.dim() == 3:  # (C, H, W) - add batch dim
-                                image = image.unsqueeze(0)
-                            
-                            # vision_model expects pixel_values keyword argument
-                            vision_outputs = self._paligemma.vision_model(pixel_values=image)
-                            return vision_outputs.last_hidden_state
-                        
-                        # Approach 3: Check for nested model structure
-                        if hasattr(self._paligemma, 'model') and hasattr(self._paligemma.model, 'get_image_features'):
-                            return self._paligemma.model.get_image_features(image)
-                        
-                        # Approach 4: Try to access via config to understand structure
-                        LOG.error(
-                            "PaliGemma model structure: %s",
-                            [attr for attr in dir(self._paligemma) if not attr.startswith('_')]
-                        )
-                        raise AttributeError(
-                            f"PaliGemma model (type: {type(self._paligemma)}) has no vision_model, "
-                            "get_image_features, or model.get_image_features method. "
-                            "This is a transformers version compatibility issue. "
-                            "Try: pip install transformers==4.45.2"
-                        )
+        # Add .model property that returns a wrapper (for compatibility with LeRobot 0.4.2)
+        # LeRobot expects: self.paligemma.model.get_image_features(image)
+        if not hasattr(PaliGemmaForConditionalGeneration, '_vla_model_wrapper_added'):
+            class PaliGemmaModelWrapper:
+                """Wrapper to provide LeRobot-compatible API for PaliGemma."""
+                def __init__(self, paligemma_instance):
+                    self._paligemma = paligemma_instance
                 
-                return ModelWrapper(self)
+                def get_image_features(self, image):
+                    """Extract image features using PaliGemma vision model."""
+                    # Try multiple approaches based on transformers version
+                    # Approach 1: Direct method (transformers >= 4.52.3)
+                    if hasattr(self._paligemma, 'get_image_features'):
+                        return self._paligemma.get_image_features(image)
+                    
+                    # Approach 2: vision_model attribute (newer transformers)
+                    if hasattr(self._paligemma, 'vision_model'):
+                        # Ensure image is a tensor and on the right device
+                        if not isinstance(image, torch.Tensor):
+                            image = torch.tensor(image, device=self._paligemma.device)
+                        else:
+                            image = image.to(self._paligemma.device)
+                        
+                        # Handle different input shapes
+                        if image.dim() == 3:  # (C, H, W) - add batch dim
+                            image = image.unsqueeze(0)
+                        
+                        # vision_model expects pixel_values keyword argument
+                        vision_outputs = self._paligemma.vision_model(pixel_values=image)
+                        return vision_outputs.last_hidden_state
+                    
+                    # Approach 3: Check for nested model structure (avoid recursion!)
+                    # Use __dict__ to check without triggering property
+                    if 'model' in self._paligemma.__dict__:
+                        inner_model = self._paligemma.__dict__['model']
+                        if hasattr(inner_model, 'get_image_features'):
+                            return inner_model.get_image_features(image)
+                    
+                    # Approach 4: Log available attributes for debugging
+                    attrs = [attr for attr in dir(self._paligemma) if not attr.startswith('_') and 'vision' in attr.lower()]
+                    LOG.error(
+                        "PaliGemma model structure - vision-related attrs: %s, all attrs: %s",
+                        attrs,
+                        [a for a in dir(self._paligemma) if not a.startswith('_')][:20]
+                    )
+                    raise AttributeError(
+                        f"PaliGemma model (type: {type(self._paligemma)}) has no vision_model, "
+                        "get_image_features, or nested model.get_image_features method. "
+                        "This is a transformers version compatibility issue. "
+                        "Try: pip install transformers==4.45.2"
+                    )
+            
+            def _model_property(self):
+                return PaliGemmaModelWrapper(self)
             
             PaliGemmaForConditionalGeneration.model = property(_model_property)
+            PaliGemmaForConditionalGeneration._vla_model_wrapper_added = True
     except (ImportError, AttributeError) as e:
         # If PaliGemma isn't available or patching fails, log and continue
         LOG.warning("Could not patch PaliGemma compatibility: %s", e)
