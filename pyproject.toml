@@ -77,6 +77,8 @@ testpaths = ["tests"]
 [tool.coverage.run]
 omit = ["tests/*", "data/*", "artifacts/*"]
 
-[tool.hatchling.build]
-include = ["src/vla_training"]
+[tool.hatchling.build.targets.wheel]
+packages = ["src/vla_training"]
+[tool.hatchling.build.targets.editable]
+dev-mode-dirs = ["src"]
 
