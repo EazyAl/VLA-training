@@ -124,19 +124,47 @@ def _build_model(
         pass
     
     # Work around LeRobot Pi05 PaliGemma model access issue
-    # In newer transformers versions, PaliGemmaForConditionalGeneration doesn't have .model attribute
-    # LeRobot 0.4.2 expects self.paligemma.model.get_image_features(), but the model IS the object
+    # In newer transformers versions, PaliGemmaForConditionalGeneration API has changed
+    # LeRobot 0.4.2 expects: self.paligemma.model.get_image_features(image)
+    # But newer transformers: the model IS the object and methods are directly on it
     try:
         from transformers import PaliGemmaForConditionalGeneration
         
         # Add .model property that returns self (for compatibility with LeRobot 0.4.2)
         if not hasattr(PaliGemmaForConditionalGeneration, 'model'):
-            # Create a property that returns the instance itself
             def _model_property(self):
-                return self
+                # Return a wrapper that has get_image_features method
+                class ModelWrapper:
+                    def __init__(self, paligemma_instance):
+                        self._paligemma = paligemma_instance
+                    
+                    def get_image_features(self, image):
+                        # In newer transformers, use the vision model directly
+                        # PaliGemma has a vision_model attribute
+                        if hasattr(self._paligemma, 'vision_model'):
+                            return self._paligemma.vision_model(image).last_hidden_state
+                        # Fallback: try to get image features from the model
+                        elif hasattr(self._paligemma, 'get_image_features'):
+                            return self._paligemma.get_image_features(image)
+                        else:
+                            # Last resort: use the processor and model
+                            from transformers import PaliGemmaProcessor
+                            processor = PaliGemmaProcessor.from_pretrained(
+                                self._paligemma.config.name_or_path if hasattr(self._paligemma.config, 'name_or_path') 
+                                else 'google/paligemma-3b-mix-224'
+                            )
+                            inputs = processor(images=image, return_tensors="pt")
+                            # Extract image features from vision model
+                            if hasattr(self._paligemma, 'vision_model'):
+                                return self._paligemma.vision_model(**inputs).last_hidden_state
+                            raise AttributeError("Cannot find image feature extraction method")
+                
+                return ModelWrapper(self)
+            
             PaliGemmaForConditionalGeneration.model = property(_model_property)
-    except (ImportError, AttributeError):
-        # If PaliGemma isn't available or already has the attribute, skip
+    except (ImportError, AttributeError) as e:
+        # If PaliGemma isn't available or patching fails, log and continue
+        LOG.warning("Could not patch PaliGemma compatibility: %s", e)
         pass
     action_dim = spec.action_dim
 
