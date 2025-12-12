@@ -1,0 +1,36 @@
+{
+  "total_steps": 3000,
+  "data": {
+    "data_root": "data/lekiwi_pickplace",
+    "spec_path": "configs/specs/mechalabs.yaml",
+    "norms_path": "artifacts/norms/lekiwi_pickplace",
+    "seq_len": 32,
+    "stride": 16,
+    "batch_size": 2,
+    "num_workers": 0,
+    "max_episodes": 5,
+    "augment_brightness": 0.0,
+    "augment_contrast": 0.0,
+    "seed": 123
+  },
+  "optimizer": {
+    "lr": 1e-4,
+    "weight_decay": 0.01
+  },
+  "scheduler": {
+    "name": "none",
+    "warmup_steps": 0
+  },
+  "checkpoint": {
+    "dir": "artifacts/checkpoints/phase_a",
+    "save_every": 500,
+    "keep_last": 2,
+    "resume": null
+  },
+  "precision": "bf16",
+  "grad_clip_norm": 1.0,
+  "grad_checkpointing": true,
+  "compile_model": false,
+  "seed": 42
+}
+

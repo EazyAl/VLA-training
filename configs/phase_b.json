@@ -1,0 +1,41 @@
+{
+  "total_steps": 20000,
+  "data": {
+    "data_root": "data/lekiwi_pickplace",
+    "spec_path": "configs/specs/mechalabs.yaml",
+    "norms_path": "artifacts/norms/lekiwi_pickplace",
+    "seq_len": 64,
+    "stride": 32,
+    "batch_size": 4,
+    "num_workers": 2,
+    "max_episodes": 20,
+    "augment_brightness": 0.05,
+    "augment_contrast": 0.05,
+    "seed": 123
+  },
+  "optimizer": {
+    "lr": 5e-5,
+    "weight_decay": 0.01
+  },
+  "scheduler": {
+    "name": "cosine",
+    "warmup_steps": 1000
+  },
+  "checkpoint": {
+    "dir": "artifacts/checkpoints/phase_b",
+    "save_every": 1000,
+    "keep_last": 2,
+    "resume": null
+  },
+  "precision": "bf16",
+  "grad_clip_norm": 1.0,
+  "grad_checkpointing": true,
+  "compile_model": false,
+  "seed": 42,
+  "wandb": {
+    "project": "vla-training",
+    "mode": "disabled",
+    "tags": ["phase_b"]
+  }
+}
+

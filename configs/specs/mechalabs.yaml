@@ -1,0 +1,17 @@
+name: lekiwi_pickplace
+version: "1"
+control_freq_hz: 30.0
+control_freq_tolerance_pct: 15.0
+required_obs_keys:
+  - camera_front
+required_proprio_keys:
+  - joint_pos
+action_dim: 6
+action_names: ["arm_shoulder_pan.pos", "arm_shoulder_lift.pos", "arm_elbow_flex.pos", "arm_wrist_flex.pos", "arm_wrist_roll.pos", "arm_gripper.pos"]
+action_type: absolute
+action_min: [-200, -200, -200, -200, -200, -200]
+action_max: [200, 200, 200, 200, 200, 200]
+max_episode_steps: 600
+allow_nan: false
+clip_actions: false
+

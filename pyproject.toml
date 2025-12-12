@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "vla-training"
+version = "0.0.1"
+description = "Training stack for Pi05 + LeRobot 0.4.2 with ROCm."
+readme = "README.md"
+requires-python = ">=3.10,<3.12"
+authors = [{ name = "VLA Team" }]
+license = { text = "MIT" }
+dependencies = [
+  "lerobot==0.4.2",
+  "torch==2.7.0",
+  "torchvision==0.22.0",
+  "torchaudio==2.7.0",
+  "numpy>=2.0,<2.2",
+  "scipy>=1.14,<1.17",
+  "opencv-python>=4.9.0,<4.11.0",
+  "kornia>=0.7.2,<0.7.99",
+  "albumentations>=1.4.0,<1.5.0",
+  "omegaconf>=2.3.0,<2.4.0",
+  "hydra-core>=1.3.2,<1.4.0",
+  "pydantic>=2.7.0,<3.0.0",
+  "wandb>=0.20.0,<0.22.0",
+  "einops>=0.8.0,<0.9.0",
+  "tqdm>=4.66.0,<4.67.0",
+  "rich>=13.7.0,<13.8.0",
+  "pyyaml>=6.0.0,<7.0.0",
+  "typing-extensions>=4.11.0,<5.0.0",
+  "huggingface_hub>=0.34.2,<0.36.0",
+  "transformers>=4.44.0,<4.46.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "black>=24.4.0",
+  "ruff>=0.6.0",
+  "mypy>=1.11.0",
+  "pytest>=8.2.0",
+  "pre-commit>=3.7.0",
+]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+fix = true
+extend-select = ["I"]
+exclude = ["data", "artifacts"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+warn_return_any = true
+strict_optional = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+exclude = "(data|artifacts)"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q"
+testpaths = ["tests"]
+
+[tool.coverage.run]
+omit = ["tests/*", "data/*", "artifacts/*"]
+

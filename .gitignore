@@ -1,0 +1,28 @@
+# Python caches
+__pycache__/
+*.py[cod]
+.Python
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Environments
+.venv/
+venv/
+.env
+
+# Tooling
+.DS_Store
+
+# Project data and artifacts
+data/
+!data/.gitkeep
+artifacts/
+!artifacts/.gitkeep
+
+# Editors / IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
