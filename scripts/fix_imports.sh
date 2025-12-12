@@ -12,9 +12,57 @@ echo "Fixing vla_training imports..."
 PTH_FILE="$VENV_SITE_PACKAGES/vla-training.pth"
 echo "$REPO_ROOT/src" > "$PTH_FILE"
 echo "Created .pth file: $PTH_FILE"
+echo "Contents: $(cat $PTH_FILE)"
 
-# Verify
-python -c "from vla_training.data import Validator, load_spec; print('✓ Imports working!')"
+# Test if the path exists
+if [ ! -d "$REPO_ROOT/src" ]; then
+    echo "ERROR: $REPO_ROOT/src does not exist!"
+    exit 1
+fi
 
-echo "Done! You can now use: python -m vla_training.cli.validate"
+# Test if vla_training exists in src
+if [ ! -d "$REPO_ROOT/src/vla_training" ]; then
+    echo "ERROR: $REPO_ROOT/src/vla_training does not exist!"
+    exit 1
+fi
+
+# Test import with explicit path addition
+echo "Testing import with explicit path..."
+python -c "
+import sys
+sys.path.insert(0, '$REPO_ROOT/src')
+try:
+    from vla_training.data import Validator, load_spec
+    print('✓ Imports working with explicit path!')
+except Exception as e:
+    print(f'✗ Import failed: {e}')
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+"
+
+# Now test with .pth file (may need new Python process)
+echo ""
+echo "Testing with .pth file (new Python process)..."
+python -c "
+import sys
+print('Python path includes:')
+for p in sys.path:
+    if 'VLA-training' in p or 'vla' in p.lower():
+        print(f'  {p}')
+
+try:
+    from vla_training.data import Validator, load_spec
+    print('✓ Imports working with .pth file!')
+except Exception as e:
+    print(f'✗ Import failed: {e}')
+    print('Note: You may need to start a new Python session for .pth to take effect')
+    import traceback
+    traceback.print_exc()
+"
+
+echo ""
+echo "Done! If imports still fail, try:"
+echo "  1. Start a new Python session (the .pth file is now in place)"
+echo "  2. Or use: export PYTHONPATH=\"$REPO_ROOT/src:\$PYTHONPATH\""
 
