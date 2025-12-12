@@ -16,6 +16,8 @@ This repository fine-tunes Pi05 with LeRobot v0.4.2 on AMD/ROCm for arm-only con
 - `ci/` — CI-related scripts/configs
 
 ## Getting started
+
+### Quick Start (Local Development)
 1. Create a Python 3.10/3.11 environment (ROCm-capable):
    ```bash
    python -m venv venv
@@ -44,6 +46,37 @@ This repository fine-tunes Pi05 with LeRobot v0.4.2 on AMD/ROCm for arm-only con
 3. (Optional) Install pre-commit hooks: `pre-commit install`.
 
 4. Verify environment: `python scripts/check_env.py`.
+
+### Remote GPU Setup (Independent Machine)
+
+If setting up on a remote GPU machine without local connection:
+
+**If environment is already set up (PyTorch, ROCm, requirements):**
+```bash
+# Clone repository
+git clone https://github.com/EazyAl/VLA-training.git
+cd VLA-training
+
+# Download dataset and cache models from HuggingFace
+python scripts/prepare_data_and_cache.py
+```
+
+**If you need full environment setup:**
+```bash
+# Clone repository
+git clone https://github.com/EazyAl/VLA-training.git
+cd VLA-training
+
+# Run automated setup (downloads data from HuggingFace)
+bash scripts/setup_remote.sh
+```
+
+The data preparation script will:
+- Download dataset from HuggingFace (`PRFitz/lekiwi-dataset-pick-place-red123`)
+- Prepare episodes in `.npz` format
+- Cache models that LeRobot/transformers might use
+
+See `REMOTE_SETUP.md` for detailed instructions and manual setup options.
 
 Subsequent steps will add dataset validation, normalization, training, and evaluation pipelines.
 
