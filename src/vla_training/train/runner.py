@@ -242,6 +242,58 @@ def _build_model(
             
             PaliGemmaForConditionalGeneration.model = property(_model_property)
             PaliGemmaForConditionalGeneration._vla_model_wrapper_added = True
+            
+            # Also patch GemmaForCausalLM to add embed_tokens if missing
+            # In newer transformers, embed_tokens might be at model.embed_tokens
+            # LeRobot expects: language_model.embed_tokens(tokens)
+            try:
+                from transformers import GemmaForCausalLM
+                
+                if not hasattr(GemmaForCausalLM, '_vla_embed_tokens_patched'):
+                    # Store original __getattr__ if it exists
+                    original_getattr = getattr(GemmaForCausalLM, '__getattr__', None)
+                    
+                    def patched_getattr(self, name):
+                        if name == 'embed_tokens':
+                            # Try to find the embedding layer
+                            # First check if it exists directly (shouldn't happen if we're here)
+                            if hasattr(self, '__dict__') and 'embed_tokens' in self.__dict__:
+                                return self.__dict__['embed_tokens']
+                            # Try model.embed_tokens (common in newer transformers)
+                            if hasattr(self, 'model') and hasattr(self.model, 'embed_tokens'):
+                                # Cache it for future access
+                                self.__dict__['embed_tokens'] = self.model.embed_tokens
+                                return self.model.embed_tokens
+                            # Try get_input_embeddings() method
+                            if hasattr(self, 'get_input_embeddings'):
+                                embeddings = self.get_input_embeddings()
+                                # Cache it
+                                self.__dict__['embed_tokens'] = embeddings
+                                return embeddings
+                            # Last resort: search for common embedding attribute names
+                            for attr_name in ['embeddings', 'word_embeddings']:
+                                if hasattr(self, attr_name):
+                                    emb = getattr(self, attr_name)
+                                    self.__dict__['embed_tokens'] = emb
+                                    return emb
+                                if hasattr(self, 'model') and hasattr(self.model, attr_name):
+                                    emb = getattr(self.model, attr_name)
+                                    self.__dict__['embed_tokens'] = emb
+                                    return emb
+                            raise AttributeError(
+                                f"GemmaForCausalLM has no embed_tokens, model.embed_tokens, "
+                                "or get_input_embeddings() method. This is a transformers compatibility issue."
+                            )
+                        # For other attributes, use original __getattr__ or raise AttributeError
+                        if original_getattr is not None:
+                            return original_getattr(self, name)
+                        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+                    
+                    GemmaForCausalLM.__getattr__ = patched_getattr
+                    GemmaForCausalLM._vla_embed_tokens_patched = True
+            except (ImportError, AttributeError) as e:
+                LOG.warning("Could not patch GemmaForCausalLM embed_tokens: %s", e)
+                pass
     except (ImportError, AttributeError) as e:
         # If PaliGemma isn't available or patching fails, log and continue
         LOG.warning("Could not patch PaliGemma compatibility: %s", e)
