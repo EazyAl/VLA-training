@@ -210,7 +210,33 @@ def _build_model(
                         
                         # vision_tower expects pixel_values keyword argument
                         vision_outputs = self._paligemma.vision_tower(pixel_values=processed_image)
-                        return vision_outputs.last_hidden_state
+                        features = vision_outputs.last_hidden_state
+                        
+                        # Apply projection if available to match language model dimension
+                        # PaliGemma typically has a projector that aligns vision and language dimensions
+                        # Check common projection layer names
+                        projection_layer = None
+                        for proj_name in ['multi_modal_projector', 'language_projection', 'projector', 'vision_projection']:
+                            if hasattr(self._paligemma, proj_name):
+                                projection_layer = getattr(self._paligemma, proj_name)
+                                break
+                        
+                        if projection_layer is not None:
+                            # Apply projection to align dimensions with language model
+                            features = projection_layer(features)
+                        else:
+                            # Log warning about dimension mismatch
+                            # LeRobot's Pi05 might handle projection internally
+                            if hasattr(self._paligemma, 'language_model') and hasattr(self._paligemma.language_model, 'config'):
+                                lang_hidden_size = getattr(self._paligemma.language_model.config, 'hidden_size', None)
+                                if lang_hidden_size and features.shape[-1] != lang_hidden_size:
+                                    LOG.warning(
+                                        "Vision features dim %d doesn't match language model dim %d. "
+                                        "No projection layer found. This may cause dimension mismatch errors.",
+                                        features.shape[-1], lang_hidden_size
+                                    )
+                        
+                        return features
                     
                     # Approach 3: vision_model attribute (older transformers)
                     if hasattr(self._paligemma, 'vision_model'):
