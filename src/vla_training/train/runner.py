@@ -545,6 +545,10 @@ class TrainingRunner:
         if images.ndim == 4 and images.shape[-1] in (1, 3):
             images = images.permute(0, 3, 1, 2).contiguous()
         images = images.to(torch.float32) / 255.0
+        
+        # Create image masks (all True since we're using single images, not sequences)
+        # Shape: (B,) - boolean mask indicating which images are valid
+        img_masks = torch.ones(images.shape[0], dtype=torch.bool, device=self.device)
 
         # Build state from proprio keys in spec
         state_parts: List[torch.Tensor] = []
@@ -571,13 +575,13 @@ class TrainingRunner:
         else:
             actions = actions[:, :chunk_size]
 
-        # Dummy language tokens (zeros) and attention mask (ones)
+        # Dummy language tokens (zeros) and attention mask (ones) - MUST be boolean for torch.where
         tokens = torch.zeros(
             (images.shape[0], self.model.config.tokenizer_max_length),
             dtype=torch.long,
             device=self.device,
         )
-        attn_mask = torch.ones_like(tokens, dtype=torch.long)
+        attn_mask = torch.ones(images.shape[0], self.model.config.tokenizer_max_length, dtype=torch.bool, device=self.device)
 
         return {
             image_key: images,
