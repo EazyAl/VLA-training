@@ -137,6 +137,64 @@ def _build_model(
                 """Wrapper to provide LeRobot-compatible API for PaliGemma."""
                 def __init__(self, paligemma_instance):
                     self._paligemma = paligemma_instance
+                    # Try to get processor for proper image preprocessing
+                    self._processor = None
+                    try:
+                        from transformers import AutoProcessor
+                        if hasattr(paligemma_instance, 'config') and hasattr(paligemma_instance.config, 'name_or_path'):
+                            model_name = paligemma_instance.config.name_or_path
+                            try:
+                                self._processor = AutoProcessor.from_pretrained(model_name)
+                            except Exception:
+                                pass
+                    except Exception:
+                        pass
+                
+                def _preprocess_image(self, image):
+                    """Preprocess image for vision_tower (SigLIP)."""
+                    import torch.nn.functional as F
+                    
+                    # Ensure image is a tensor and on the right device
+                    if not isinstance(image, torch.Tensor):
+                        image = torch.tensor(image, device=self._paligemma.device)
+                    else:
+                        image = image.to(self._paligemma.device)
+                    
+                    # Handle different input shapes
+                    if image.dim() == 3:  # (C, H, W) - add batch dim
+                        image = image.unsqueeze(0)
+                    
+                    # Ensure channels-first format (B, C, H, W)
+                    if image.dim() == 4 and image.shape[-1] in (1, 3):
+                        image = image.permute(0, 3, 1, 2).contiguous()
+                    
+                    # If image is in [0, 1] range, convert to [0, 255] for resizing
+                    if image.max() <= 1.0:
+                        image = image * 255.0
+                    
+                    # Resize to 224x224 (SigLIP base-patch16-224 expects this)
+                    if image.shape[-2:] != (224, 224):
+                        image = F.interpolate(
+                            image,
+                            size=(224, 224),
+                            mode='bilinear',
+                            align_corners=False
+                        )
+                    
+                    # Normalize using ImageNet stats (SigLIP expects this)
+                    # ImageNet mean: [0.485, 0.456, 0.406], std: [0.229, 0.224, 0.225]
+                    mean = torch.tensor([0.485, 0.456, 0.406], device=image.device).view(1, 3, 1, 1)
+                    std = torch.tensor([0.229, 0.224, 0.225], device=image.device).view(1, 3, 1, 1)
+                    
+                    # Convert to float and normalize
+                    image = image.to(torch.float32)
+                    if image.shape[1] == 3:  # RGB
+                        image = (image / 255.0 - mean) / std
+                    else:
+                        # Grayscale or other - just normalize to [0, 1] range
+                        image = image / 255.0
+                    
+                    return image
                 
                 def get_image_features(self, image):
                     """Extract image features using PaliGemma vision model."""
@@ -147,31 +205,17 @@ def _build_model(
                     
                     # Approach 2: vision_tower attribute (newer transformers - this is what we have!)
                     if hasattr(self._paligemma, 'vision_tower'):
-                        # Ensure image is a tensor and on the right device
-                        if not isinstance(image, torch.Tensor):
-                            image = torch.tensor(image, device=self._paligemma.device)
-                        else:
-                            image = image.to(self._paligemma.device)
-                        
-                        # Handle different input shapes
-                        if image.dim() == 3:  # (C, H, W) - add batch dim
-                            image = image.unsqueeze(0)
+                        # Preprocess image for SigLIP
+                        processed_image = self._preprocess_image(image)
                         
                         # vision_tower expects pixel_values keyword argument
-                        vision_outputs = self._paligemma.vision_tower(pixel_values=image)
+                        vision_outputs = self._paligemma.vision_tower(pixel_values=processed_image)
                         return vision_outputs.last_hidden_state
                     
                     # Approach 3: vision_model attribute (older transformers)
                     if hasattr(self._paligemma, 'vision_model'):
-                        if not isinstance(image, torch.Tensor):
-                            image = torch.tensor(image, device=self._paligemma.device)
-                        else:
-                            image = image.to(self._paligemma.device)
-                        
-                        if image.dim() == 3:
-                            image = image.unsqueeze(0)
-                        
-                        vision_outputs = self._paligemma.vision_model(pixel_values=image)
+                        processed_image = self._preprocess_image(image)
+                        vision_outputs = self._paligemma.vision_model(pixel_values=processed_image)
                         return vision_outputs.last_hidden_state
                     
                     # Approach 4: Check for nested model structure (avoid recursion!)
