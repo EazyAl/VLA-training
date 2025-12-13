@@ -337,6 +337,27 @@ def _build_model(
             except (ImportError, AttributeError) as e:
                 LOG.warning("Could not patch GemmaForCausalLM compatibility: %s", e)
                 pass
+            
+            # Patch GemmaRMSNorm to accept cond argument (AdaRMS compatibility)
+            # LeRobot 0.4.2 expects: layer.input_layernorm(hidden_states, cond=adarms_cond)
+            # But standard transformers GemmaRMSNorm doesn't accept cond
+            try:
+                from transformers.models.gemma.modeling_gemma import GemmaRMSNorm
+                
+                if not hasattr(GemmaRMSNorm, '_vla_cond_patched'):
+                    original_forward = GemmaRMSNorm.forward
+                    
+                    def patched_forward(self, hidden_states, cond=None):
+                        """Forward with optional cond argument for AdaRMS compatibility."""
+                        # Ignore cond argument if provided (for LeRobot compatibility)
+                        # Standard GemmaRMSNorm doesn't use conditional normalization
+                        return original_forward(self, hidden_states)
+                    
+                    GemmaRMSNorm.forward = patched_forward
+                    GemmaRMSNorm._vla_cond_patched = True
+            except (ImportError, AttributeError) as e:
+                LOG.warning("Could not patch GemmaRMSNorm cond argument: %s", e)
+                pass
     except (ImportError, AttributeError) as e:
         # If PaliGemma isn't available or patching fails, log and continue
         LOG.warning("Could not patch PaliGemma compatibility: %s", e)
