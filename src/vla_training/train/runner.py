@@ -269,14 +269,13 @@ def _build_model(
             PaliGemmaForConditionalGeneration.model = property(_model_property)
             PaliGemmaForConditionalGeneration._vla_model_wrapper_added = True
             
-            # Also patch GemmaForCausalLM to add embed_tokens if missing
-            # In newer transformers, embed_tokens might be at model.embed_tokens
-            # LeRobot expects: language_model.embed_tokens(tokens)
-            # Use a property descriptor instead of __getattr__ to avoid interfering with other attributes
+            # Also patch GemmaForCausalLM to add embed_tokens and layers if missing
+            # In newer transformers, these might be at model.embed_tokens and model.layers
+            # LeRobot expects: language_model.embed_tokens(tokens) and language_model.layers
             try:
                 from transformers import GemmaForCausalLM
                 
-                if not hasattr(GemmaForCausalLM, '_vla_embed_tokens_patched'):
+                if not hasattr(GemmaForCausalLM, '_vla_compat_patched'):
                     def _get_embed_tokens(self):
                         """Property to access embed_tokens with fallbacks."""
                         # Check if already cached
@@ -310,11 +309,33 @@ def _build_model(
                             "or get_input_embeddings() method. This is a transformers compatibility issue."
                         )
                     
-                    # Add as a property - this won't interfere with other attribute access
+                    def _get_layers(self):
+                        """Property to access layers with fallbacks."""
+                        # Check if already cached
+                        if hasattr(self, '__dict__') and '_cached_layers' in self.__dict__:
+                            return self.__dict__['_cached_layers']
+                        
+                        # Try model.layers (common in newer transformers)
+                        if hasattr(self, 'model') and hasattr(self.model, 'layers'):
+                            self.__dict__['_cached_layers'] = self.model.layers
+                            return self.model.layers
+                        
+                        # Try direct access (older transformers)
+                        if hasattr(self, 'layers'):
+                            self.__dict__['_cached_layers'] = self.layers
+                            return self.layers
+                        
+                        raise AttributeError(
+                            f"GemmaForCausalLM has no layers or model.layers. "
+                            "This is a transformers compatibility issue."
+                        )
+                    
+                    # Add as properties - this won't interfere with other attribute access
                     GemmaForCausalLM.embed_tokens = property(_get_embed_tokens)
-                    GemmaForCausalLM._vla_embed_tokens_patched = True
+                    GemmaForCausalLM.layers = property(_get_layers)
+                    GemmaForCausalLM._vla_compat_patched = True
             except (ImportError, AttributeError) as e:
-                LOG.warning("Could not patch GemmaForCausalLM embed_tokens: %s", e)
+                LOG.warning("Could not patch GemmaForCausalLM compatibility: %s", e)
                 pass
     except (ImportError, AttributeError) as e:
         # If PaliGemma isn't available or patching fails, log and continue
